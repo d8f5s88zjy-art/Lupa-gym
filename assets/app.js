@@ -23,30 +23,12 @@
     url: 'https://d8f5s88zjy-art.github.io/Lupa-gym/'
   };
 
-  /* Otváracie hodiny fitness centra (Európa/Bratislava), [od, do] v minútach od polnoci.
-     Index 0 = pondelok. Víkendové hodiny pri zmene upraviť aj v texte FAQ. */
-  var HOURS = [
-    [6 * 60 + 30, 21 * 60],   // pondelok
-    [6 * 60 + 30, 21 * 60],   // utorok
-    [6 * 60 + 30, 21 * 60],   // streda
-    [6 * 60 + 30, 21 * 60],   // štvrtok
-    [6 * 60 + 30, 23 * 60],   // piatok
-    [8 * 60, 17 * 60],        // sobota
-    [8 * 60, 17 * 60]         // nedeľa
-  ];
-
-  /* Harmonogram skupinových tréningov.
-     day: 0 = pondelok … 6 = nedeľa. tag zodpovedá filtru trénerov. */
-  var TIMETABLE = [
-    { day: 0, from: '16:00', to: '17:00', name: 'Pilates', coach: 'Majka Navrátilová', tag: 'pilates' },
-    { day: 0, from: '17:00', to: '18:30', name: 'Krav Maga', coach: 'Tomáš Židek', tag: 'kravmaga' },
-    { day: 1, from: '17:00', to: '19:00', name: 'Bojové športy', coach: 'Michal Šášik', tag: 'boj', note: 'MMA, Jiu Jitsu, Luta Livre' },
-    { day: 1, from: '18:00', to: '19:00', name: 'Zdravý chrbát', coach: 'Nikol Molnárová', tag: 'chrbat' },
-    { day: 2, from: '18:00', to: '19:00', name: 'Pilates', coach: 'Majka Navrátilová', tag: 'pilates' },
-    { day: 3, from: '17:00', to: '19:00', name: 'Bojové športy', coach: 'Michal Šášik', tag: 'boj', note: 'MMA, Jiu Jitsu, Luta Livre' },
-    { day: 3, from: '18:00', to: '19:00', name: 'Zdravý chrbát', coach: 'Nikol Molnárová', tag: 'chrbat' },
-    { day: 5, from: '13:00', to: '15:00', name: 'Bojové športy', coach: 'Michal Šášik', tag: 'boj', note: 'MMA, Jiu Jitsu, Luta Livre' }
-  ];
+  /* Otváracie hodiny (HOURS), rozvrh (TIMETABLE) a sviatky (HOLIDAYS) sú v index.html v skripte hneď za úvodom
+     (window.GK), aby úvod ukázal správny stav už pri prvom vykreslení. Upravujú sa len tam. */
+  var GK = window.GK;
+  window.GK_APP = true;
+  var HOURS = GK.HOURS;
+  var TIMETABLE = GK.TIMETABLE;
 
   var DAYS = ['Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota', 'Nedeľa'];
   var DAYS_SHORT = ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'];
@@ -137,51 +119,24 @@
   function pad(n) { return (n < 10 ? '0' : '') + n; }
 
   /* ---------- čas v Bratislave ---------- */
-  function nowBA() {
-    try {
-      var f = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Bratislava', hour12: false, weekday: 'short', hour: '2-digit', minute: '2-digit' });
-      var parts = {};
-      f.formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
-      var wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(parts.weekday);
-      var h = parseInt(parts.hour, 10) % 24;
-      return { day: wd < 0 ? 0 : wd, min: h * 60 + parseInt(parts.minute, 10) };
-    } catch (e) {
-      var n = new Date();
-      return { day: (n.getDay() + 6) % 7, min: n.getHours() * 60 + n.getMinutes() };
-    }
-  }
-
-  function openStatus() {
-    var els = $$('[data-open-status]');
-    if (!els.length) return;
-    var t = nowBA();
-    var h = HOURS[t.day];
-    var text, open = false;
-    if (h && t.min >= h[0] && t.min < h[1]) {
-      open = true;
-      text = (h[1] - t.min <= 60) ? 'Otvorené, zatvárame o ' + mm(h[1]) : 'Otvorené do ' + mm(h[1]);
-    } else if (h && t.min < h[0]) {
-      text = 'Dnes otvárame o ' + mm(h[0]);
-    } else {
-      var nd = (t.day + 1) % 7;
-      text = 'Zatvorené · zajtra od ' + mm(HOURS[nd][0]);
-    }
-    els.forEach(function (el) {
-      el.textContent = text;
-      var wrap = el.closest('.status, .nav-status, .hero-fact');
-      if (wrap) wrap.classList.toggle('is-open', open);
-    });
-    var today = $('[data-today-hours]');
-    if (today) today.textContent = mm(h[0]) + ' – ' + mm(h[1]);
-  }
+  /* stav otvorenia, dnešné hodiny, živý riadok úvodu a štítky „Čo je o vás?“ vypisuje GK.paint() (index.html),
+     každú minútu presne na celú minútu a po návrate na kartu (GK.start) */
+  function nowBA() { return GK.now(); }
 
   function hoursTable() {
-    $$('[data-hours] tbody').forEach(function (tb) {
-      var today = nowBA().day;
-      tb.innerHTML = HOURS.map(function (h, i) {
-        return '<tr' + (i === today ? ' class="is-today"' : '') + '><td>' + DAYS[i] + (i === today ? ' <small>dnes</small>' : '') + '</td><td>' + mm(h[0]) + ' – ' + mm(h[1]) + '</td></tr>';
-      }).join('');
-    });
+    var shown = -1;
+    function draw() {
+      var t = nowBA(), today = t.day, hol = GK.info(t, 0).hol;
+      if (today === shown) return;
+      shown = today;
+      $$('[data-hours] tbody').forEach(function (tb) {
+        tb.innerHTML = HOURS.map(function (h, i) {
+          return '<tr' + (i === today ? ' class="is-today"' : '') + '><td>' + DAYS[i] + (i === today ? ' <small>' + (hol ? 'dnes · sviatok' : 'dnes') + '</small>' : '') + '</td><td>' + mm(h[0]) + ' – ' + mm(h[1]) + '</td></tr>';
+        }).join('');
+      });
+    }
+    draw();
+    d.addEventListener('gk:tick', draw);
   }
 
   function mapEmbed() {
@@ -209,8 +164,19 @@
     var bar = $('.bar'), nav = $('#nav'), burger = $('.burger');
     var spTargets = $$('.progress, .rail-track');
     var lastY = window.scrollY, ticking = false;
+    var root = d.documentElement, dockCta = $('.dock-cta'), inHero = null;
+    /* kým je úvod na obrazovke aspoň z polovice: v lište nie je druhé volt tlačidlo ani druhý stav otvorenia,
+       pravé tlačidlo docku vedie na prvú návštevu; potom sa vráti na „Cenník a vstup“ */
+    function heroState(y) {
+      var on = y < window.innerHeight * 0.5;
+      if (on === inHero) return;
+      inHero = on;
+      root.classList.toggle('in-hero', on);
+      if (dockCta) dockCta.setAttribute('href', on ? '#prva-navsteva' : '#cennik');
+    }
     function onScroll() {
       var y = window.scrollY;
+      heroState(y);
       var h = d.documentElement.scrollHeight - window.innerHeight;
       var p = h > 0 ? Math.min(1, Math.max(0, y / h)) : 0;
       var sp = p.toFixed(4);
@@ -251,7 +217,7 @@
 
   /* ---------- odhaľovanie ---------- */
   function reveal() {
-    var items = $$('.reveal').filter(function (el) { return !(INTRO && el.closest('.hero')); });
+    var items = $$('.reveal');
     if (!('IntersectionObserver' in window)) { items.forEach(function (el) { el.classList.add('in'); }); return; }
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
@@ -259,71 +225,46 @@
     items.forEach(function (el) { io.observe(el); });
   }
 
-  /* ---------- otvorenie: zapnutie svetiel v hale ----------
-     Úvod je tmavý, svetlá dvakrát bliknú a zostanú svietiť, kamera pomaly nabieha,
-     potom vybehne nadpis. Preskočí sa pri obmedzení pohybu, pri odkaze na sekciu
-     a pri opakovanom načítaní v tej istej karte. */
-  var INTRO = false;
-  function intro() {
-    var img = $('.hero-img');
-    if (!img) return;
-    var skip = reduce.matches || location.hash.length > 1;
-    try { if (sessionStorage.getItem('gk-intro')) skip = true; } catch (e) {}
-    if (skip) return;
-    INTRO = true;
-    d.body.classList.add('intro');
-    try { sessionStorage.setItem('gk-intro', '1'); } catch (e) {}
-    var heroBits = $$('.hero .reveal');
-    heroBits.forEach(function (el) { el.style.transition = 'none'; });
-    var started = false, opened = false;
-    function start() {
-      if (started) return;
-      started = true;
-      d.body.classList.add('lights');
-      setTimeout(open, 1750);
-    }
-    function open() {
-      if (opened) return;
-      opened = true;
-      d.body.classList.add('is-loaded');
-      heroBits.forEach(function (el, i) {
-        el.style.transition = '';
-        void el.offsetWidth;
-        el.style.transitionDelay = (0.35 + i * 0.12) + 's';
-        el.classList.add('in');
-      });
-      d.body.classList.remove('intro');
-      d.body.classList.add('intro-done');
-    }
-    var t = setTimeout(start, 1200);
-    (img.decode ? img.decode() : Promise.resolve()).then(function () { clearTimeout(t); start(); }, function () { clearTimeout(t); start(); });
-    $('.hero').addEventListener('click', function () { if (started && !opened) open(); });
-  }
-
-  function hero() {
-    var done = false;
-    function loaded() { if (done || INTRO) return; done = true; d.body.classList.add('is-loaded'); }
-    if (d.fonts && d.fonts.ready) d.fonts.ready.then(loaded);
-    setTimeout(loaded, 600);
-  }
-
-  /* ---------- úvod: paralaxa pri skrolovaní ---------- */
-  function heroParallax() {
+  /* ---------- úvod: odchod pri rolovaní ----------
+     Kde prehliadač vie animation-timeline, robí to CSS na kompozítore (style.css, Réžia 2026-10h). Tu je len záloha
+     pre počítač bez tejto podpory (Firefox, staršie Safari): tie isté hodnoty, jeden pasívny listener cez rAF. */
+  function heroExit() {
     if (reduce.matches || LITE) return;
-    var hin = $('.hero-in'), stage = $('.hero-media');
-    if (!hin || !stage) return;
-    var tick = false;
+    if (window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()')) return;
+    var hin = $('.hero-in'), colo = $('.hero-colo'), dim = $('.hero-dim'), media = $('.hero-media');
+    if (!hin || !dim || !media) return;
+    var tick = false, parked = false;
     function frame() {
       tick = false;
       var y = window.scrollY, vh = window.innerHeight;
-      if (y > vh * 1.2) return;
-      var k = Math.min(1, y / (vh * 0.9));
-      hin.style.transform = 'translate3d(0,' + (y * 0.28).toFixed(1) + 'px,0)';
-      hin.style.opacity = Math.max(0, 1 - k * 1.1).toFixed(3);
-      stage.style.transform = 'translate3d(0,' + (y * 0.35).toFixed(1) + 'px,0)';
+      if (y > vh * 1.1) { if (parked) return; parked = true; } else parked = false;
+      var k = Math.min(1, y / vh), o = Math.min(1, y / (vh * 0.6));
+      var tr = 'translate3d(0,' + (-0.08 * vh * o).toFixed(1) + 'px,0)';
+      hin.style.transform = tr; hin.style.opacity = (1 - o).toFixed(3);
+      if (colo) { colo.style.transform = tr; colo.style.opacity = (1 - o).toFixed(3); }
+      dim.style.opacity = (0.7 * k).toFixed(3);
+      media.style.transform = 'scale(' + (1 + 0.06 * k).toFixed(4) + ')';
     }
     window.addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(frame); } }, { passive: true });
     frame();
+  }
+
+  /* ---------- úvod: poistka pre zväčšené písmo v systéme (Android, iOS) ----------
+     Ak by sa obsah úvodu dostal pod lištu, najprv sa zmenší nadpis (.is-tight), potom zmizne podnadpis (.is-tight2). */
+  function heroFit() {
+    var hero = $('.hero'), hin = $('.hero-in'), bar = $('.bar');
+    if (!hero || !hin || !bar) return;
+    function check() {
+      hero.classList.remove('is-tight', 'is-tight2');
+      var lim = bar.offsetHeight + 8;
+      if (hin.offsetTop >= lim) return;
+      hero.classList.add('is-tight');
+      if (hin.offsetTop < lim) hero.classList.add('is-tight2');
+    }
+    check();
+    if (d.fonts && d.fonts.ready) d.fonts.ready.then(check);
+    var t = 0;
+    window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(check, 150); });
   }
 
   function cardGlow() {
@@ -337,9 +278,26 @@
     });
   }
 
-  function marquee() {
-    var t = $('.marquee-track');
-    if (t) t.innerHTML += t.innerHTML;
+  /* ---------- filmový pás: obraz sa pri rolovaní roztiahne z rámu na celú šírku ---------- */
+  function band() {
+    var b = $('.band');
+    if (!b) return;
+    if (reduce.matches) { b.classList.add('static'); return; }
+    var on = false, tick = false;
+    function frame() {
+      tick = false;
+      var r = b.getBoundingClientRect(), vh = window.innerHeight;
+      var p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - vh)));
+      var enter = Math.min(1, Math.max(0, (vh - r.top) / vh));          // príchod pásu do obrazu
+      var grow = Math.min(1, Math.max(0, p / 0.55));
+      b.style.setProperty('--bp', (1 - Math.pow(1 - grow, 3)).toFixed(4));
+      b.style.setProperty('--bt', Math.min(1, Math.max(0, (p - 0.3) / 0.35)).toFixed(3));
+      if (enter < 1 && p === 0) b.style.setProperty('--bt', '0');
+    }
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (en) { on = en[0].isIntersecting; if (on) frame(); }, { rootMargin: '200px 0px' }).observe(b);
+    window.addEventListener('scroll', function () { if (on && !tick) { tick = true; requestAnimationFrame(frame); } }, { passive: true });
+    window.addEventListener('resize', frame);
+    frame();
   }
 
   /* ---------- rozvrh ---------- */
@@ -348,31 +306,52 @@
     if (!root) return;
     var tabs = $('.tt-days', root), list = $('.tt-list', root);
     var today = nowBA().day, sel = today;
-    tabs.innerHTML = DAYS.map(function (n, i) {
-      var cnt = TIMETABLE.filter(function (c) { return c.day === i; }).length;
-      return '<button class="tt-day' + (i === today ? ' is-today' : '') + '" role="tab" type="button" data-day="' + i + '" aria-selected="' + (i === sel) + '" id="tt-tab-' + i + '">' +
-        DAYS_SHORT[i] + '<small>' + (i === today ? 'dnes' : (cnt ? cnt + (cnt === 1 ? ' lekcia' : ' lekcie') : 'fitness')) + '</small></button>';
-    }).join('');
-    function render(day) {
+    /* najbližší výskyt dňa v týždni (dnes alebo o 1–6 dní) je sviatok? */
+    function holOf(day) { var t = nowBA(); return GK.info(t, (day - t.day + 7) % 7).hol; }
+    function drawTabs() {
+      tabs.innerHTML = DAYS.map(function (n, i) {
+        var cnt = TIMETABLE.filter(function (c) { return c.day === i; }).length, hol = holOf(i);
+        return '<button class="tt-day' + (i === today ? ' is-today' : '') + '" role="tab" type="button" data-day="' + i + '" aria-selected="' + (i === sel) + '" id="tt-tab-' + i + '">' +
+          DAYS_SHORT[i] + '<small>' + (i === today ? (hol ? 'dnes · sviatok' : 'dnes') : hol ? 'sviatok' : (cnt ? cnt + (cnt === 1 ? ' lekcia' : ' lekcie') : 'fitness')) + '</small></button>';
+      }).join('');
+    }
+    drawTabs();
+    function render(day, quiet) {
       sel = day;
+      list.classList.toggle('tt-quiet', !!quiet);
       $$('.tt-day', tabs).forEach(function (b) { b.setAttribute('aria-selected', String(+b.dataset.day === day)); });
       list.setAttribute('aria-labelledby', 'tt-tab-' + day);
-      var h = HOURS[day];
+      var h = HOURS[day], hol = holOf(day), wk = day >= 5;
       var rows = TIMETABLE.filter(function (c) { return c.day === day; }).sort(function (a, b) { return a.from.localeCompare(b.from); });
       var html = '<div class="tt-row tt-open" style="animation-delay:0ms">' +
         '<div class="tt-time">' + mm(h[0]) + '<small>do ' + mm(h[1]) + '</small></div>' +
-        '<div class="tt-name">Samostatný tréning<span>Fitness centrum otvorené celý deň, stroje aj voľné váhy</span></div>' +
+        '<div class="tt-name">Samostatný tréning<span>' + (hol ? 'Sviatok, otváracie hodiny overte telefonicky' : wk ? 'Víkend, otváracie hodiny overte telefonicky' : 'Fitness centrum otvorené celý deň, stroje aj voľné váhy') + '</span></div>' +
         '<div class="tt-coach">Bez objednania</div>' +
         '<a class="tt-go" href="#cennik">Cenník</a></div>';
+      var now = nowBA(), isToday = day === now.day;
+      function toMin(t) { var q = t.split(':'); return +q[0] * 60 + +q[1]; }
       html += rows.map(function (c, i) {
-        return '<div class="tt-row" style="animation-delay:' + ((i + 1) * 60) + 'ms">' +
+        var st = '', cls = '';
+        if (hol) { cls = ' is-past'; st = '<b class="tt-done">Sviatok · overte telefonicky</b>'; }
+        else if (isToday) {
+          var a = toMin(c.from), b = toMin(c.to);
+          if (now.min >= a && now.min < b) { st = '<b class="tt-live">Práve prebieha</b>'; cls = ' is-live'; }
+          else if (now.min < a) { var dm = a - now.min; st = '<b class="tt-soon">' + (dm < 60 ? 'o ' + dm + ' min' : 'o ' + Math.floor(dm / 60) + ' h ' + (dm % 60 ? dm % 60 + ' min' : '')) + '</b>'; }
+          else { cls = ' is-past'; st = '<b class="tt-done">Skončilo</b>'; }
+        }
+        return '<div class="tt-row' + cls + '" style="animation-delay:' + ((i + 1) * 60) + 'ms">' +
           '<div class="tt-time">' + c.from + '<small>do ' + c.to + '</small></div>' +
-          '<div class="tt-name">' + c.name + (c.note ? '<span>' + c.note + '</span>' : '<span>Skupinový tréning</span>') + '</div>' +
+          '<div class="tt-name">' + c.name + st + (c.note ? '<span>' + c.note + '</span>' : '<span>Skupinový tréning</span>') + '</div>' +
           '<div class="tt-coach">' + c.coach + '</div>' +
           '<a class="tt-go" href="#treneri" data-filter-go="' + c.tag + '">Tréner</a></div>';
       }).join('');
-      if (!rows.length) html += '<p class="tt-empty">' + DAYS[day] + ' bez skupinových lekcií. Fitness centrum je otvorené na samostatný tréning.</p>';
-      list.innerHTML = html;
+      if (!rows.length) html += '<p class="tt-empty">' + DAYS[day] + ' bez skupinových lekcií. ' + (hol || wk ? 'Otváracie hodiny overte telefonicky.' : 'Fitness centrum je otvorené na samostatný tréning.') + '</p>';
+      /* minútové obnovenie: bez zmeny nič neprepisovať; inak vrátiť fokus na ten istý odkaz */
+      if (html === list._h) return;
+      var fi = -1, ae = d.activeElement;
+      if (list.contains(ae)) fi = $$('a, button', list).indexOf(ae);
+      list.innerHTML = list._h = html;
+      if (fi >= 0) { var nf = $$('a, button', list)[fi]; if (nf) nf.focus({ preventScroll: true }); }
     }
     tabs.addEventListener('click', function (e) {
       var b = e.target.closest('.tt-day');
@@ -390,6 +369,12 @@
       if (a) setCoachFilter(a.dataset.filterGo);
     });
     render(sel);
+    /* každú minútu: nový deň prekreslí záložky, dnešný deň sa obnoví bez animácie riadkov */
+    d.addEventListener('gk:tick', function () {
+      var t = nowBA().day;
+      if (t !== today) { if (sel === today) sel = t; today = t; drawTabs(); render(sel, true); }
+      else if (sel === today) render(sel, true);
+    });
   }
 
   /* ---------- tréneri: filter ---------- */
@@ -415,7 +400,7 @@
 
   /* ---------- galéria: lightbox ---------- */
   function lightbox() {
-    var figs = $$('.gal-item');
+    var figs = $$('.shot, .gal-f');
     var dlg = $('#lightbox');
     if (!figs.length || !dlg || !dlg.showModal) return;
     var img = $('img', dlg), cap = $('.lb-cap', dlg), cnt = $('.lb-count', dlg);
@@ -424,7 +409,7 @@
       i = (n + figs.length) % figs.length;
       var f = figs[i], src = f.dataset.full || $('img', f).currentSrc || $('img', f).src;
       img.src = src; img.alt = $('img', f).alt;
-      cap.textContent = $('figcaption', f) ? $('figcaption', f).textContent : '';
+      cap.textContent = $('.shot-t', f) ? $('.shot-t', f).textContent + ' · ' + $('.shot-d', f).textContent : ($('figcaption', f) ? $('figcaption', f).textContent : '');
       cnt.textContent = (i + 1) + ' / ' + figs.length;
     }
     figs.forEach(function (f, n) {
@@ -450,123 +435,205 @@
     }, { passive: true });
   }
 
-  /* ---------- kontaktný formulár: pripravený e-mail ---------- */
-  function contactForm() {
-    var form = $('#contact-form');
-    if (!form) return;
-    var err = $('[data-error]', form);
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      err.hidden = true;
-      var f = form.elements;
-      var name = f.name.value.trim(), contact = f.contact.value.trim(), topic = f.topic.value, msg = f.msg.value.trim();
-      var problems = [];
-      if (name.length < 2) problems.push('meno');
-      if (contact.length < 5) problems.push('telefón alebo e-mail');
-      if (msg.length < 3) problems.push('správa');
-      if (problems.length) {
-        err.textContent = 'Skontroluj prosím: ' + problems.join(', ') + '.';
-        err.hidden = false;
-        (problems[0] === 'meno' ? f.name : problems[0] === 'správa' ? f.msg : f.contact).focus();
-        return;
-      }
-      var body = 'Dobrý deň,\n\n' + msg + '\n\nMeno: ' + name + '\nKontakt: ' + contact + '\nTéma: ' + topic + '\n\n(odoslané z webu GYM KLUB)';
-      window.location.href = 'mailto:' + GYM.email + '?subject=' + encodeURIComponent(topic + ' – ' + name) + '&body=' + encodeURIComponent(body);
-      form.classList.add('is-sent');
-      $('[data-sent]', form).hidden = false;
-    });
-  }
-
-  /* ---------- mobilná lišta: skryť pri formulári a lightboxe ---------- */
+  /* ---------- mobilná lišta: skryť pri pätičke, ktorá má vlastné tlačidlá ---------- */
   function dock() {
-    var dk = $('.dock'), form = $('#contact-form');
-    if (!dk || !form || !('IntersectionObserver' in window)) return;
-    new IntersectionObserver(function (en) { dk.classList.toggle('is-hidden', en[0].isIntersecting); }, { threshold: 0.2 }).observe(form);
+    var dk = $('.dock'), foot = $('.foot');
+    if (!dk || !foot || !('IntersectionObserver' in window)) return;
+    new IntersectionObserver(function (en) { dk.classList.toggle('is-hidden', en[0].isIntersecting); }, { threshold: 0.05 }).observe(foot);
   }
 
-  /* ---------- skrolovacia vrstva cez celú stránku ---------- */
-  function scrollFx() {
-    if (reduce.matches || LITE) return;
-    var shapes = $$('.bgs').map(function (el) {
-      return { el: el, speed: +el.dataset.speed, rot: +el.dataset.rot, top: +el.dataset.top / 100, size: 200 };
+  /* ---------- kontakt: kopírovanie adresy ---------- */
+  function copyAddr() {
+    var b = $('[data-copy-addr]');
+    if (!b) return;
+    b.addEventListener('click', function () {
+      var t = GYM.street + ', ' + GYM.zip + ' ' + GYM.city;
+      var done = function () { b.textContent = 'Adresa skopírovaná'; setTimeout(function () { b.textContent = 'Kopírovať adresu'; }, 2200); };
+      if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, function () { b.textContent = t; });
+      else b.textContent = t;
     });
-    function measure() { shapes.forEach(function (sh) { sh.size = sh.el.offsetHeight || 200; }); }
-    measure();
-    window.addEventListener('resize', measure);
-    var wms = $$('.has-wm').map(function (sec) {
-      var w = d.createElement('span');
-      w.className = 'wm'; w.setAttribute('aria-hidden', 'true'); w.textContent = sec.dataset.wm;
-      sec.insertBefore(w, sec.firstChild);
-      return { sec: sec, el: w };
-    });
-    var heads = $$('.has-wm .sec-head').map(function (h) {
-      h.classList.remove('reveal'); h.classList.add('in');
-      return { el: h, k: $('.kicker', h) };
-    });
-    var marquee = $('.marquee');
-    var rail = $('.rail'), dotsBox = $('.rail-dots'), dots = [];
-    if (rail) {
-      ['treningy', 'cennik', 'rozvrh', 'treneri', 'priestor', 'recenzie', 'faq', 'kontakt'].forEach(function (id) {
-        var sec = $('#' + id); if (!sec) return;
-        var a = d.createElement('a');
-        a.href = '#' + id; a.dataset.label = sec.dataset.wm || id; a.setAttribute('aria-label', a.dataset.label);
-        dotsBox.appendChild(a); dots.push({ a: a, sec: sec });
-      });
-    }
-    function placeDots() {
-      var max = d.documentElement.scrollHeight - window.innerHeight;
-      dots.forEach(function (dt) {
-        var top = dt.sec.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.4;
-        dt.a.style.top = (Math.min(1, Math.max(0, top / max)) * 100).toFixed(2) + '%';
-      });
-    }
-    placeDots();
-    window.addEventListener('resize', placeDots);
-    setTimeout(placeDots, 1500);
-    setTimeout(placeDots, 4000);
+  }
 
-    var lastY = window.scrollY, vel = 0, ticking = false;
-    function frame() {
-      var y = window.scrollY, vh = window.innerHeight;
-      var dy = y - lastY; lastY = y;
-      vel += (dy - vel) * 0.18;
-      if (Math.abs(vel) < 0.05) vel = 0;
-      shapes.forEach(function (sh) {
-        var L = vh + sh.size;
-        var ty = (((sh.top * vh - y * sh.speed) % L) + L) % L - sh.size;
-        sh.el.style.transform = 'translate3d(0,' + ty.toFixed(1) + 'px,0) rotate(' + (y * sh.rot).toFixed(2) + 'deg)';
+  /* ---------- mozaika na telefóne: zbalená na 6 záberov ---------- */
+  function moreFold() {
+    var box = $('.more'), btn = $('[data-more-btn]');
+    if (!box || !btn) return;
+    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    box.classList.add('is-folded'); btn.hidden = false;
+    btn.addEventListener('click', function () {
+      box.classList.remove('is-folded'); btn.hidden = true;
+      $$('.gal-f.reveal', box).forEach(function (f) { f.classList.add('in'); });
+    });
+  }
+
+  /* ---------- slová nadpisov (pre vstup s otočením) ---------- */
+  function splitWords() {
+    $$('.sec-head .h2, .band-in .h2').forEach(function (h) {
+      h.innerHTML = h.innerHTML.replace(/(<em>)?([^<\s]+)(<\/em>)?/g, function (m, a, w, b) {
+        if (!w.trim()) return m;
+        return (a || '') + '<span class="w">' + w + '</span>' + (b || '');
       });
-      wms.forEach(function (w) {
-        var r = w.sec.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > vh) return;
-        var v = (vh - r.top) / (vh + r.height);
-        w.el.style.transform = 'translate3d(' + ((0.5 - v) * 28).toFixed(2) + 'vw,' + ((v - 0.5) * -12).toFixed(2) + 'vh,0)';
+    });
+  }
+
+  /* ---------- rastúce čísla (ceny) ---------- */
+  function countUp() {
+    var els = $$('[data-count]');
+    if (!els.length || reduce.matches || !('IntersectionObserver' in window)) return;
+    var io = new IntersectionObserver(function (en) {
+      en.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        io.unobserve(e.target);
+        var el = e.target, to = +el.dataset.count, t0 = performance.now(), dur = 900 + to * 6;
+        (function f(now) {
+          var k = Math.min(1, (now - t0) / dur), v = Math.round(to * (1 - Math.pow(1 - k, 3)));
+          el.textContent = v + ' €';
+          if (k < 1) requestAnimationFrame(f);
+        })(t0);
       });
-      heads.forEach(function (h) {
-        var r = h.el.getBoundingClientRect();
-        if (r.top > vh + 80 || r.bottom < -80) return;
-        var v = Math.min(1, Math.max(0, (vh - r.top) / (vh * 0.55)));
-        var e = 1 - Math.pow(1 - v, 3);
-        h.el.style.opacity = e.toFixed(3);
-        h.el.style.transform = 'translate3d(0,' + ((1 - e) * 56).toFixed(1) + 'px,0)';
-        if (h.k) h.k.style.transform = 'translate3d(' + ((1 - e) * -16).toFixed(1) + 'px,0,0)';
-      });
-      if (marquee) marquee.style.transform = 'skewX(' + Math.max(-14, Math.min(14, -vel * 0.35)).toFixed(2) + 'deg)';
-      var active = null;
-      dots.forEach(function (dt) { if (dt.sec.getBoundingClientRect().top <= vh * 0.45) active = dt; });
-      dots.forEach(function (dt) { dt.a.classList.toggle('is-active', dt === active); });
-      ticking = false;
-      if (vel !== 0) requestAnimationFrame(tick);
+    }, { threshold: 0.6 });
+    els.forEach(function (el) { io.observe(el); });
+  }
+
+  /* ---------- 3D naklápanie kariet pod myšou ---------- */
+  function tilt() {
+    if (LITE || reduce.matches || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    $$('[data-tilt]').forEach(function (c) {
+      var g = d.createElement('span'); g.className = 'tilt-glare'; c.appendChild(g);
+      c.addEventListener('pointermove', function (e) {
+        var r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        c.classList.add('is-tilt');
+        c.style.setProperty('--ry', ((x - 0.5) * 10).toFixed(2) + 'deg');
+        c.style.setProperty('--rx', ((0.5 - y) * 8).toFixed(2) + 'deg');
+        c.style.setProperty('--gx', (x * 100).toFixed(1) + '%'); c.style.setProperty('--gy', (y * 100).toFixed(1) + '%');
+      }, { passive: true });
+      c.addEventListener('pointerleave', function () { c.classList.remove('is-tilt'); c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); });
+    });
+  }
+
+  /* ---------- mostíky: vstup vety ---------- */
+  function bridges() {
+    var els = $$('.bridge');
+    if (!els.length || !('IntersectionObserver' in window)) { els.forEach(function (b) { b.classList.add('in'); }); return; }
+    var io = new IntersectionObserver(function (en) { en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.4 });
+    els.forEach(function (b) { io.observe(b); });
+  }
+
+  /* ---------- priestor: filmový pás ----------
+     Na počítači obraz stojí a zábery sa pri rolovaní strihajú jeden za druhým (tvrdý strih,
+     pomalý nájazd kamery počas záberu). Na telefóne a pri obmedzení pohybu je to vodorovný pás na potiahnutie. */
+  function reel() {
+    var r = $('[data-reel]');
+    if (!r) return;
+    var shots = $$('.shot', r), n = shots.length, cur = 0;
+    var nEl = $('[data-reel-n]', r), bar = $('[data-reel-bar]', r);
+    $$('.gal-f').forEach(function (f) {
+      f.tabIndex = 0; f.setAttribute('role', 'button');
+      f.setAttribute('aria-label', 'Zväčšiť: ' + $('figcaption', f).textContent);
+    });
+    shots.forEach(function (f) {
+      f.tabIndex = 0; f.setAttribute('role', 'button');
+      f.setAttribute('aria-label', 'Zväčšiť: ' + $('.shot-t', f).textContent);
+    });
+    if (reduce.matches) { r.classList.add('static'); return; }
+    r.style.setProperty('--n', n);
+    var on = false, tick = false;
+    function cutTo(i) {
+      shots[cur].classList.remove('is-on');
+      shots[i].classList.add('is-on');
+      cur = i;
+      nEl.textContent = pad(i + 1);
+      r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash');
     }
-    function tick() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
-    window.addEventListener('scroll', tick, { passive: true });
-    window.addEventListener('resize', tick);
+    function frame() {
+      tick = false;
+      var b = r.getBoundingClientRect(), vh = window.innerHeight;
+      var p = Math.min(1, Math.max(0, -b.top / Math.max(1, b.height - vh)));
+      var x = p * n, i = Math.min(n - 1, Math.floor(x));
+      if (i !== cur) cutTo(i);
+      r.style.setProperty('--lp', Math.min(1, x - i).toFixed(4));
+      bar.style.transform = 'scaleX(' + p.toFixed(4) + ')';
+    }
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (en) { on = en[0].isIntersecting; r.classList.toggle('live', on); if (on) frame(); }, { rootMargin: '100px 0px' }).observe(r);
+    window.addEventListener('scroll', function () { if (on && !tick) { tick = true; requestAnimationFrame(frame); } }, { passive: true });
+    window.addEventListener('resize', frame);
+    frame();
+  }
+
+  /* ---------- filmový strih pri skoku z menu ----------
+     Clona sa zatvorí, na čiernej sa ukáže číslo a názov kapitoly, stránka skočí a clona sa otvorí.
+     Pri obmedzení pohybu a pri krátkej vzdialenosti sa nepoužije. */
+  var CHAPTERS = { preco: ['01', 'Prečo'], priestor: ['02', 'Priestor'], treningy: ['03', 'Tréningy'], treneri: ['04', 'Tréneri'],
+    rozvrh: ['05', 'Rozvrh'], cennik: ['06', 'Cenník'], 'prva-navsteva': ['06', 'Prvá návšteva'], recenzie: ['07', 'Recenzie'],
+    faq: ['08', 'Otázky'], kontakt: ['09', 'Kontakt'] };
+  function filmCut() {
+    var c = $('.cut');
+    if (!c || reduce.matches) return;
+    var busy = false;
+    d.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href^="#"]');
+      if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey) return;
+      var id = a.getAttribute('href').slice(1), ch = CHAPTERS[id], el = id && d.getElementById(id);
+      if (!ch || !el) return;
+      var pad0 = parseFloat(getComputedStyle(d.documentElement).scrollPaddingTop) || 0;
+      var y = Math.max(0, Math.min(d.documentElement.scrollHeight - window.innerHeight, el.getBoundingClientRect().top + window.scrollY - pad0));
+      if (Math.abs(y - window.scrollY) < window.innerHeight * 1.2) { if (a.closest('.cesta-card, .bridge')) { el.classList.remove('is-focus'); void el.offsetWidth; el.classList.add('is-focus'); } return; }   // blízko: plynulý posun
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      $('.cut-n', c).textContent = ch[0];
+      $('.cut-h', c).textContent = ch[1];
+      c.classList.remove('open'); c.classList.add('close');
+      setTimeout(function () {
+        /* cieľ zmerať až teraz: počas clony sa mohlo dočítať písmo alebo dokresliť sekcia */
+        y = Math.max(0, Math.min(d.documentElement.scrollHeight - window.innerHeight, el.getBoundingClientRect().top + window.scrollY - (parseFloat(getComputedStyle(d.documentElement).scrollPaddingTop) || 0)));
+        window.scrollTo({ top: y, behavior: 'instant' });
+        try { history.replaceState(null, '', '#' + id); } catch (err) {}
+        $$('.reveal', el).forEach(function (r) { r.classList.add('in'); });
+        el.classList.remove('is-focus'); void el.offsetWidth; el.classList.add('is-focus');
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+        el.focus({ preventScroll: true });
+      }, 420);
+      setTimeout(function () { c.classList.remove('close'); c.classList.add('open'); }, 760);
+      setTimeout(function () { c.classList.remove('open'); busy = false; }, 1300);
+    }, true);
+  }
+
+  /* ---------- hlavička: aktuálna kapitola a jemná paralaxa fotiek ---------- */
+  function chapterLine() {
+    var sub = $('.brand-sub'), txt = sub && $('span', sub);
+    if (!txt) return;
+    var ids = ['preco', 'priestor', 'treningy', 'treneri', 'rozvrh', 'cennik', 'recenzie', 'faq', 'kontakt'];
+    var secs = ids.map(function (id) { return d.getElementById(id); }).filter(Boolean);
+    var base = txt.textContent, cur = base, tick = false, timer = 0;
+    var pars = reduce.matches ? [] : $$('[data-par]');
+    function frame() {
+      tick = false;
+      /* v úvode „Lipa Centrum · Nitra“, po odchode z úvodu živý stav (Otvorené do 21:00), v sekciách kapitola */
+      var line = window.innerHeight * 0.35, label = window.scrollY > window.innerHeight * 0.5 && GK.last ? GK.last.bar : base;
+      secs.forEach(function (el) { if (el.getBoundingClientRect().top <= line) { var c = CHAPTERS[el.id]; label = c[0] + ' · ' + c[1]; } });
+      if (label !== cur) {
+        cur = label; clearTimeout(timer);
+        sub.classList.add('swap');
+        timer = setTimeout(function () { txt.textContent = cur; sub.classList.remove('swap'); }, 260);
+      }
+      var vh = window.innerHeight;
+      pars.forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.bottom < -100 || r.top > vh + 100) return;
+        var k = ((r.top + r.height / 2) - vh / 2) / vh;            // -1 až 1 okolo stredu obrazovky
+        el.style.setProperty('--py2', (k * -26).toFixed(1) + 'px');
+      });
+    }
+    window.addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(frame); } }, { passive: true });
+    window.addEventListener('resize', frame);
+    d.addEventListener('gk:tick', frame);
     frame();
   }
 
   /* ---------- plynulé (zotrvačné) skrolovanie kolieskom ----------
      Len na počítači s myšou. Dotyk, klávesnica a posuvník ostávajú natívne. Vypnúť: SMOOTH_SCROLL = false. */
-  var SMOOTH_SCROLL = true;
+  var SMOOTH_SCROLL = false;
   function smoothScroll() {
     if (!SMOOTH_SCROLL || reduce.matches) return;
     if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
@@ -595,7 +662,7 @@
     }, { passive: false });
     d.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[href^="#"]');
-      if (!a || a.getAttribute('href').length < 2) return;
+      if (e.defaultPrevented || !a || a.getAttribute('href').length < 2) return;
       var el = $(a.getAttribute('href'));
       if (!el) return;
       e.preventDefault();
@@ -642,27 +709,47 @@
     });
   }
 
-  /* ---------- štart ---------- */
+  /* ---------- štart ----------
+     Hneď: to, čo je vidieť v úvode alebo hneď pod ním. Zvyšok po jednej funkcii pri nečinnosti až po otvorení úvodu
+     (gk:hero-done), aby hlavné vlákno počas úvodnej sekvencie nič nezdržalo. Pri skoku na sekciu alebo pri rolovaní
+     sa zvyšok spustí okamžite. */
   if (LITE) d.body.classList.add('lite');
-  intro();
   fillFacts();
-  openStatus();
-  setInterval(openStatus, 60000);
-  hoursTable();
-  mapEmbed();
+  GK.paint();
+  GK.start();
   header();
   reveal();
-  hero();
-  cardGlow();
-  marquee();
-  timetable();
-  coaches();
-  lightbox();
-  contactForm();
   dock();
-  faq();
-  heroParallax();
-  scrollFx();
-  smoothScroll();
-  schema();
+  filmCut();
+  heroExit();
+  heroFit();
+  /* menia výšku stránky (filmový pás, rozvrh, hodiny, mozaika): hneď, aby skok v menu pristál presne */
+  hoursTable();
+  timetable();
+  reel();
+  moreFold();
+  var later = [splitWords, coaches, chapterLine, band, countUp, tilt, bridges,
+    cardGlow, lightbox, faq, copyAddr, mapEmbed, smoothScroll, schema];
+  (function () {
+    var i = 0, started = false;
+    function run(all) {
+      while (i < later.length) {
+        var fn = later[i++];
+        try { fn(); } catch (e) { if (window.console) console.error(e); }
+        if (!all) break;
+      }
+      if (!all && i < later.length) next();
+    }
+    function next() { if ('requestIdleCallback' in window) requestIdleCallback(function () { run(false); }, { timeout: 500 }); else setTimeout(function () { run(false); }, 30); }
+    function start() { if (started) return; started = true; next(); }
+    function flush() { window.removeEventListener('scroll', onScroll); if (i < later.length) { started = true; run(true); } }
+    function onScroll() { if (window.scrollY > window.innerHeight * 0.3) flush(); }
+    /* klik na odkaz v stránke: najprv dokončiť všetko, až potom sa meria cieľ */
+    window.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a[href^="#"]')) flush(); }, true);
+    if (GK.heroDone || location.hash.length > 1) { flush(); return; }
+    d.addEventListener('gk:hero-done', start);
+    window.addEventListener('scroll', onScroll, { passive: true });
+  })();
+  function smoothOn() { requestAnimationFrame(function () { requestAnimationFrame(function () { d.documentElement.classList.add('sm'); }); }); }
+  if (d.readyState === 'complete') smoothOn(); else window.addEventListener('load', smoothOn);
 })();
