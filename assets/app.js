@@ -404,13 +404,17 @@
     var dlg = $('#lightbox');
     if (!figs.length || !dlg || !dlg.showModal) return;
     var img = $('img', dlg), cap = $('.lb-cap', dlg), cnt = $('.lb-count', dlg);
-    var i = 0;
+    var i = 0, pre = {};
     function show(n) {
       i = (n + figs.length) % figs.length;
       var f = figs[i], src = f.dataset.full || $('img', f).currentSrc || $('img', f).src;
       img.src = src; img.alt = $('img', f).alt;
       cap.textContent = $('.shot-t', f) ? $('.shot-t', f).textContent + ' · ' + $('.shot-d', f).textContent : ($('figcaption', f) ? $('figcaption', f).textContent : '');
       cnt.textContent = (i + 1) + ' / ' + figs.length;
+      [i + 1, i - 1].forEach(function (k) {
+        var g = figs[(k + figs.length) % figs.length], u = g.dataset.full;
+        if (u && !pre[u]) { pre[u] = new Image(); pre[u].decoding = 'async'; pre[u].src = u; }
+      });
     }
     figs.forEach(function (f, n) {
       f.addEventListener('click', function () { show(n); dlg.showModal(); d.body.classList.add('lb-open'); });
@@ -459,6 +463,8 @@
     var box = $('.more'), btn = $('[data-more-btn]');
     if (!box || !btn) return;
     if (!window.matchMedia('(max-width: 700px)').matches) return;
+    /* zbaliť len vtedy, keď je v mozaike viac než šesť záberov (CSS skrýva od siedmeho) */
+    if ($$('.gal-f', box).length <= 6) return;
     box.classList.add('is-folded'); btn.hidden = false;
     btn.addEventListener('click', function () {
       box.classList.remove('is-folded'); btn.hidden = true;
@@ -538,10 +544,15 @@
     if (reduce.matches) { r.classList.add('static'); return; }
     r.style.setProperty('--n', n);
     var on = false, tick = false;
+    function warm(k) {
+      var f = shots[k], im = f && $('img', f);
+      if (im && !im.dataset.warm && im.decode) { im.dataset.warm = '1'; im.loading = 'eager'; im.decode().catch(function () {}); }
+    }
     function cutTo(i) {
       shots[cur].classList.remove('is-on');
       shots[i].classList.add('is-on');
       cur = i;
+      warm(i + 1); warm(i - 1);
       nEl.textContent = pad(i + 1);
       r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash');
     }
@@ -555,6 +566,8 @@
       bar.style.transform = 'scaleX(' + p.toFixed(4) + ')';
     }
     if ('IntersectionObserver' in window) new IntersectionObserver(function (en) { on = en[0].isIntersecting; r.classList.toggle('live', on); if (on) frame(); }, { rootMargin: '100px 0px' }).observe(r);
+    /* pred príchodom k pásu: prvé dva zábery dekódovať vopred */
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (en, io) { if (en[0].isIntersecting) { io.disconnect(); warm(0); warm(1); } }, { rootMargin: '900px 0px' }).observe(r);
     window.addEventListener('scroll', function () { if (on && !tick) { tick = true; requestAnimationFrame(frame); } }, { passive: true });
     window.addEventListener('resize', frame);
     frame();

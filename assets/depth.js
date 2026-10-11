@@ -159,8 +159,11 @@
     heroVis();
   }
 
+  /* slabé zariadenie alebo šetrenie dát: pás a filmový pás ostanú ako obyčajné fotky */
+  var WEAK = !!(NC.saveData || (navigator.deviceMemory && navigator.deviceMemory < 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4));
+
   /* pás LED: priblíženie ide podľa --bp z rolovania */
-  var band = document.querySelector('.band-frame[data-depth-w]');
+  var band = WEAK ? null : document.querySelector('.band-frame[data-depth-w]');
   if (band) {
     var bs = new Scene(band, { input: band.closest('.band'), fx: 0.5, fy: 0.4, push: 0.06,
       zoom: function (e, t) { var bp = parseFloat(band.closest('.band').style.getPropertyValue('--bp')) || 0; return 1.24 - bp * 0.16; } });
@@ -172,19 +175,24 @@
   }
 
   /* filmový pás: jedno plátno; pri strihu kamera vojde do nového záberu */
-  var stage = document.querySelector('.reel:not(.static) .reel-stage');
+  var stage = WEAK ? null : document.querySelector('.reel:not(.static) .reel-stage');
   if (stage) {
     var rs = new Scene(stage, { input: stage, fx: 0.5, fy: 0.5, push: 0.08,
       zoom: function (e, t) { var lp = parseFloat(stage.closest('.reel').style.getPropertyValue('--lp')) || 0; return 1.16 - 0.08 * e - 0.04 * lp; } });
     var shots = Array.prototype.slice.call(stage.querySelectorAll('.shot'));
-    var cur = -1, loading = false, pending = -1;
+    var cur = -1, loading = false, pending = -1, fetched = {};
+    function prefetch(k) {
+      var f = shots[k], s2 = f && srcFor(f);
+      if (!s2 || !s2.depth || fetched[k]) return;
+      fetched[k] = true; loadImg(s2.src).catch(function () {}); loadImg(s2.depth).catch(function () {});
+    }
     function show(i) {
       if (i === cur) return;
       if (loading) { pending = i; return; }
       var f = shots[i], src = srcFor(f);
       if (!src || !src.depth) return;
       loading = true;
-      rs.load(src.src, src.depth).then(function () { cur = i; stage.classList.add('gl-on'); }).catch(function () {}).then(function () { loading = false; if (pending >= 0 && pending !== cur) { var p = pending; pending = -1; show(p); } });
+      rs.load(src.src, src.depth).then(function () { cur = i; stage.classList.add('gl-on'); prefetch(i + 1); }).catch(function () {}).then(function () { loading = false; if (pending >= 0 && pending !== cur) { var p = pending; pending = -1; show(p); } });
     }
     var obs = new MutationObserver(function () { var i = shots.findIndex(function (f) { return f.classList.contains('is-on'); }); if (i >= 0) show(i); });
     shots.forEach(function (f) { obs.observe(f, { attributes: true, attributeFilter: ['class'] }); });
