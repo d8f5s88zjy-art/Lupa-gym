@@ -458,6 +458,24 @@
     });
   }
 
+  /* ---------- zdieľanie stránky: systémové menu na telefóne, inak kopírovanie odkazu ---------- */
+  function share() {
+    var bs = $$('[data-share]');
+    if (!bs.length) return;
+    var c = document.querySelector('link[rel="canonical"]');
+    var url = c ? c.href : location.href.split('#')[0];
+    var data = { title: document.title, text: 'GYM KLUB Nitra – fitness a bojové športy v Lipa Centre na Chrenovej', url: url };
+    bs.forEach(function (b) {
+      var label = b.textContent;
+      var flash = function (t) { b.textContent = t; setTimeout(function () { b.textContent = label; }, 2200); };
+      b.addEventListener('click', function () {
+        if (navigator.share) { navigator.share(data).catch(function () {}); return; }
+        if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { flash('Odkaz skopírovaný'); }, function () { b.textContent = url; });
+        else b.textContent = url;
+      });
+    });
+  }
+
   /* ---------- mozaika na telefóne: zbalená na 6 záberov ---------- */
   function moreFold() {
     var box = $('.more'), btn = $('[data-more-btn]');
@@ -773,7 +791,7 @@
   reel();
   moreFold();
   var later = [splitWords, coaches, chapterLine, band, liveVideo, countUp, tilt, bridges,
-    cardGlow, lightbox, faq, copyAddr, mapEmbed, smoothScroll, schema];
+    cardGlow, lightbox, faq, copyAddr, share, mapEmbed, smoothScroll, schema];
   (function () {
     var i = 0, started = false;
     function run(all) {
