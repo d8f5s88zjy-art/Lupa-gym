@@ -26,3 +26,7 @@ Web pre **GYM KLUB Fitness & Bodybuilding**, Výstavná 6 (Lipa Centrum), 949 01
 ## Zdroj údajov
 
 Fakty pochádzajú z oficiálneho webu **gymklub.sk** a od majiteľa prevádzky. Fotografie a videá sú výlučne z prevádzky GYM KLUB.
+
+## Marketing
+
+`.claude/skills/ai-marketing-tim/` – postup pre Claude na reklamy, príspevky, odpovede záujemcom a ranný súhrn (podľa videa „AI Social Media Team“). Fakty, cenník, rozvrh a prvých 10 návrhov reklám sú v `references/gym-klub.md`. Na web sa nenasadzuje.
