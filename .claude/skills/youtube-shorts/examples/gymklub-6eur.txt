@@ -1,0 +1,6 @@
+0|2.5|Stačí *prísť*.
+2.5|5|Vstup *6 €*.
+5|7.5|Bez *objednávania*.
+7.5|10|MMA, *zápasenie*
+10|12.5|Po–Pi *06:00–21:00*
+12.5|15|Výstavná 6, *Nitra*

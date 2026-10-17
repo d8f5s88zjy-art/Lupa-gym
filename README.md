@@ -30,3 +30,5 @@ Fakty pochádzajú z oficiálneho webu **gymklub.sk** a od majiteľa prevádzky.
 ## Marketing
 
 `.claude/skills/ai-marketing-tim/` – postup pre Claude na reklamy, príspevky, odpovede záujemcom a ranný súhrn (podľa videa „AI Social Media Team“). Fakty, cenník, rozvrh a prvých 10 návrhov reklám sú v `references/gym-klub.md`. Na web sa nenasadzuje.
+
+`.claude/skills/youtube-shorts/` – tvorba YouTube Shorts a TikTokov: vzorec scenára z virálnych videí, rozbor videí, hotové scenáre pre GYM KLUB a skript `scripts/make_short.py`, ktorý z fotiek, videí a titulkov zloží video 1080 × 1920 (len ffmpeg).
